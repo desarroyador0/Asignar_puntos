@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Cajero — Asignar Puntos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+  <style>
+    :root {
+      --bg:      #0e0d0c;
+      --surface: #161412;
+      --surface2:#1e1b18;
+      --border:  #2a2520;
+      --accent:  #e8410a;
+      --accent2: #ff6b35;
+      --green:   #22c55e;
+      --red:     #ef4444;
+      --text:    #f0ede8;
+      --muted:   #6b6560;
+      --radius:  18px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    #app {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 430px;
+      min-height: 100dvh;
+      display: flex; flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      padding: 28px 24px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-box {
+      width: 42px; height: 42px;
+      background: var(--accent);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .header-info h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: .5px;
+      line-height: 1;
+    }
+
+    .header-info span {
+      font-size: 12px;
+      color: var(--muted);
+      display: block;
+      margin-top: 3px;
+    }
+
+    .conn-indicator {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .conn-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background .3s;
+    }
+
+    .conn-dot.ok  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .conn-dot.err { background: var(--red); }
+
+    /* ── MAIN ── */
+    main {
+      flex: 1;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* ── LOGIN SCREEN ── */
+    #screen-login {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 28px;
+      gap: 28px;
+    }
+
+    .login-hero {
+      text-align: center;
+    }
+
+    .login-hero .big-icon {
+      font-size: 52px;
+      display: block;
+      margin-bottom: 16px;
+    }
+
+    .login-hero h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 36px;
+      letter-spacing: 1px;
+    }
+
+    .login-hero p { font-size: 14px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+    .login-form {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .login-field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .login-field input {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .login-field input:focus { border-color: var(--accent); }
+    .login-field input::placeholder { color: var(--muted); }
+
+    /* ── BTN ── */
+    .btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      letter-spacing: .5px;
+      cursor: pointer;
+      transition: all .15s;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent2); }
+    .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0; }
+    .btn-green { background: var(--green); color: #fff; }
+
+    /* ── SCANNER CARD ── */
+    .scanner-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .card-header h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 16px;
+      letter-spacing: .5px;
+    }
+
+    .scanner-body {
+      position: relative;
+      background: #000;
+      aspect-ratio: 1;
+    }
+
+    #qr-video {
+      width: 100%; height: 100%;
+      object-fit: cover; display: block;
+    }
+
+    #qr-canvas { display: none; }
+
+    /* scan overlay */
+    .scan-overlay {
+      position: absolute; inset: 0;
+      display: none;
+      align-items: center; justify-content: center;
+    }
+
+    .scan-frame {
+      width: 62%; aspect-ratio: 1;
+      position: relative;
+    }
+
+    .sf-corner {
+      position: absolute;
+      width: 22px; height: 22px;
+      border-color: var(--accent2);
+      border-style: solid;
+    }
+
+    .sf-corner.tl { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+    .sf-corner.tr { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+    .sf-corner.bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+    .sf-corner.br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+    .scan-line {
+      position: absolute; left: 8%; right: 8%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      box-shadow: 0 0 10px var(--accent);
+      animation: scanline 2s ease-in-out infinite;
+    }
+
+    @keyframes scanline {
+      0%   { top: 8%; opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { top: 92%; opacity: 0; }
+    }
+
+    .scanner-placeholder {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 12px;
+      background: var(--surface2);
+    }
+
+    .scanner-placeholder .ph-icon { font-size: 44px; opacity: .3; }
+    .scanner-placeholder p { font-size: 13px; color: var(--muted); text-align: center; max-width: 170px; line-height: 1.5; }
+
+    /* ── STEP VIEWS ── */
+    .screen { display: none; flex-direction: column; gap: 18px; }
+    .screen.active { display: flex; animation: fadeUp .3s ease; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── CLIENTE CARD ── */
+    .cliente-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .cliente-header {
+      padding: 18px 20px;
+      background: linear-gradient(135deg, #1a1620 0%, #1e1430 100%);
+      display: flex; align-items: center; gap: 14px;
+    }
+
+    .avatar {
+      width: 50px; height: 50px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 24px; color: #fff;
+      flex-shrink: 0;
+    }
+
+    .cliente-meta h3 { font-size: 17px; font-weight: 700; }
+    .cliente-meta p  { font-size: 13px; color: #a5b4fc; margin-top: 3px; }
+
+    .puntos-badge { margin-left: auto; text-align: right; flex-shrink: 0; }
+    .puntos-badge .num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px; color: #a78bfa; line-height: 1;
+    }
+    .puntos-badge .lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+
+    .cliente-form { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+    .field-label {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--muted); margin-bottom: 7px;
+    }
+
+    .monto-wrap {
+      display: flex; align-items: center;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+
+    .monto-wrap:focus-within { border-color: var(--accent); }
+
+    .monto-prefix {
+      padding: 0 14px;
+      font-size: 18px; font-weight: 700;
+      color: var(--muted);
+    }
+
+    .monto-input {
+      flex: 1;
+      padding: 16px 16px 16px 0;
+      background: transparent; border: none; outline: none;
+      color: var(--text);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px; letter-spacing: .5px;
+      -moz-appearance: textfield;
+    }
+
+    .monto-input::-webkit-outer-spin-button,
+    .monto-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    .preview-row {
+      background: var(--surface2);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .preview-row .pl { font-size: 13px; color: var(--muted); }
+    .preview-row .pr {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 26px; letter-spacing: .5px;
+      color: var(--muted);
+      transition: color .2s;
+    }
+
+    .preview-row .pr.has-pts { color: var(--green); }
+
+    /* ── SUCCESS ── */
+    .success-screen {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 16px;
+      padding: 24px 0; text-align: center;
+    }
+
+    .success-ring {
+      width: 76px; height: 76px;
+      border-radius: 50%;
+      border: 2px solid var(--green);
+      background: rgba(34,197,94,.1);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 34px;
+      animation: pop .4s cubic-bezier(.34,1.56,.64,1);
+    }
+
+    @keyframes pop {
+      from { transform: scale(0); }
+      to   { transform: scale(1); }
+    }
+
+    .success-pts {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 60px; letter-spacing: 1px;
+      color: var(--green); line-height: 1;
+    }
+
+    .success-screen h2 { font-family: 'Bebas Neue', sans-serif; font-size: 24px; }
+    .success-screen p  { font-size: 13px; color: var(--muted); line-height: 1.6; max-width: 260px; }
+
+    /* ── MANUAL ── */
+    .manual-wrap {
+      display: none;
+      flex-direction: column; gap: 12px;
+      animation: fadeUp .3s ease;
+    }
+
+    .manual-wrap.open { display: flex; }
+
+    .manual-input {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px; font-weight: 600;
+      outline: none;
+      transition: border-color .2s;
+      -moz-appearance: textfield;
+    }
+
+    .manual-input::-webkit-outer-spin-button,
+    .manual-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .manual-input:focus { border-color: var(--accent); }
+    .manual-input::placeholder { color: var(--muted); font-weight: 400; font-size: 15px; }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      padding: 12px 22px;
+      font-size: 13px; font-weight: 600;
+      display: flex; align-items: center; gap: 8px;
+      z-index: 100;
+      transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+      white-space: nowrap;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.ok   { border-color: var(--green); }
+    .toast.err  { border-color: var(--red); }
+
+    /* link button */
+    .link-btn {
+      background: none; border: none;
+      color: var(--muted); font-size: 12px;
+      font-family: 'Outfit', sans-serif;
+      cursor: pointer; text-decoration: underline;
+      padding: 0; text-align: center; width: 100%;
+    }
+
+    .link-btn:hover { color: var(--text); }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* config warning */
+    .config-warning {
+      background: #1a0f00;
+      border: 1px solid #6b3500;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #f59e0b;
+      line-height: 1.6;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- LOGIN -->
+  <div id="screen-login" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;gap:28px;">
+    <div class="login-hero">
+      <span class="big-icon">⚡</span>
+      <h2>Panel Cajero</h2>
+      <p>Ingresá con tu usuario para comenzar a asignar puntos.</p>
+    </div>
+
+    <div class="config-warning" id="config-warning">
+      ⚠ Configurá tu URL y clave de Supabase al inicio del script antes de usar esta app.
+    </div>
+
+    <div class="login-form">
+      <div class="login-field">
+        <label>Usuario</label>
+        <input type="text" id="login-user" placeholder="cajero1" autocomplete="username"
+          onkeydown="if(event.key==='Enter') doLogin()"/>
+      </div>
+      <div class="login-field">
+        <label>Contraseña</label>
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"
+          onkeydown="if(event.key==='Enter') doLogin()"/>
+      </div>
+      <button class="btn btn-primary" onclick="doLogin()" id="login-btn">
+        Ingresar
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN (visible después del login) -->
+  <div id="screen-main" style="display:none; flex-direction:column; width:100%;">
+
+    <header>
+      <div class="logo-box">⚡</div>
+      <div class="header-info">
+        <h1>Asignar Puntos</h1>
+        <span id="header-user">—</span>
+      </div>
+      <div class="conn-indicator">
+        <div class="conn-dot" id="conn-dot"></div>
+        <span id="conn-label">conectando</span>
+      </div>
+    </header>
+
+    <main>
+
+      <!-- STEP: SCAN -->
+      <div class="screen active" id="step-scan">
+
+        <!-- Scanner -->
+        <div class="scanner-card">
+          <div class="card-header">
+            <span>📷</span>
+            <h2>Escanear QR del cliente</h2>
+          </div>
+          <div class="scanner-body" id="scanner-body">
+            <div class="scanner-placeholder" id="scan-placeholder">
+              <div class="ph-icon">⬛</div>
+              <p>Presioná el botón para activar la cámara</p>
+            </div>
+            <video id="qr-video" autoplay playsinline></video>
+            <canvas id="qr-canvas"></canvas>
+            <div class="scan-overlay" id="scan-overlay">
+              <div class="scan-frame">
+                <div class="sf-corner tl"></div>
+                <div class="sf-corner tr"></div>
+                <div class="sf-corner bl"></div>
+                <div class="sf-corner br"></div>
+                <div class="scan-line"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="scan-btn" onclick="toggleScanner()">
+          📷 Activar cámara
+        </button>
+
+        <button class="link-btn" onclick="toggleManual()">
+          Ingresar teléfono manualmente
+        </button>
+
+        <div class="manual-wrap" id="manual-wrap">
+          <div class="field-label">Teléfono del cliente</div>
+          <input class="manual-input" type="number" id="manual-tel"
+            placeholder="Ej: 1123456789"
+            onkeydown="if(event.key==='Enter') buscarManual()"/>
+          <button class="btn btn-ghost" onclick="buscarManual()">
+            🔍 Buscar cliente
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP: CLIENTE ENCONTRADO -->
+      <div class="screen" id="step-cliente">
+        <div class="cliente-card">
+          <div class="cliente-header">
+            <div class="avatar" id="c-avatar">?</div>
+            <div class="cliente-meta">
+              <h3 id="c-nombre">—</h3>
+              <p  id="c-tel">—</p>
+            </div>
+            <div class="puntos-badge">
+              <div class="num" id="c-puntos">0</div>
+              <div class="lbl">puntos</div>
+            </div>
+          </div>
+          <div class="cliente-form">
+            <div>
+              <div class="field-label">Monto de la compra</div>
+              <div class="monto-wrap">
+                <span class="monto-prefix">$</span>
+                <input class="monto-input" type="number" id="monto"
+                  placeholder="0"
+                  oninput="calcPts()"
+                  onkeydown="if(event.key==='Enter') confirmar()"/>
+              </div>
+            </div>
+            <div class="preview-row">
+              <span class="pl">Puntos a sumar</span>
+              <span class="pr" id="pts-preview">0 pts</span>
+            </div>
+            <button class="btn btn-green" onclick="confirmar()" id="btn-confirmar">
+              ✓ Confirmar y sumar puntos
+            </button>
+            <button class="btn btn-ghost" onclick="cancelar()">
+              ✕ Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP: SUCCESS -->
+      <div class="screen" id="step-success">
+        <div class="success-screen">
+          <div class="success-ring">✓</div>
+          <div class="success-pts" id="suc-pts">+0</div>
+          <h2>¡Puntos asignados!</h2>
+          <p id="suc-detalle">—</p>
+        </div>
+        <button class="btn btn-primary" onclick="reset()">
+          → Siguiente cliente
+        </button>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════
+//  ⚙ CONFIGURACIÓN — reemplazá con tus datos
+// ════════════════════════════════════════════
+const SUPABASE_URL = 'https://qxbkfmvugutmggqwxhrb.supabase.co';   // https://xxxx.supabase.co
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4YmtmbXZ1Z3V0bWdncXd4aHJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyNTEzMDEsImV4cCI6MjA3MzgyNzMwMX0.Qsx0XpQaSgt2dKUaLs8GvMmH8Qt6Dp_TQM25a_WOa8E';       // eyJ...
+
+const PESOS_POR_PUNTO = 1000;             // $1.000 = 1 punto
+
+// Usuarios cajeros { usuario: contraseña }
+const CAJEROS = {
+  'cajero1': '1234',
+  'cajero2': '1234',
+  'admin':   'admin123',
+};
+
+// Nombre exacto de la tabla y columnas en Supabase
+const TABLA         = 'Clientes';
+const COL_TELEFONO  = 'Telef';   // clave primaria
+const COL_PUNTOS    = 'Puntos';     // columna de puntos
+// Columnas opcionales para mostrar el nombre del cliente:
+const COL_NOMBRE    = 'Nombre';     // si no existe, se usa el teléfono
+// ════════════════════════════════════════════
+
+const { createClient } = supabase;
+let db;
+let loggedUser     = null;
+let clienteActual  = null;
+let scannerActive  = false;
+let videoStream    = null;
+let scanInterval   = null;
+
+// Inicializar Supabase y verificar config
+function initSupabase() {
+  if (SUPABASE_URL === 'TU_SUPABASE_URL' || SUPABASE_KEY === 'TU_ANON_KEY') {
+    document.getElementById('config-warning').style.display = 'block';
+    return false;
+  }
+  try {
+    db = createClient(SUPABASE_URL, SUPABASE_KEY);
+    return true;
+  } catch(e) {
+    document.getElementById('config-warning').style.display = 'block';
+    return false;
+  }
+}
+
+// Verificar conexión real a Supabase
+async function checkConn() {
+  if (!db) return;
+  const dot   = document.getElementById('conn-dot');
+  const label = document.getElementById('conn-label');
+  try {
+    const { error } = await db.from(TABLA).select(COL_TELEFONO).limit(1);
+    if (error) throw error;
+    dot.className   = 'conn-dot ok';
+    label.textContent = 'conectado';
+  } catch {
+    dot.className   = 'conn-dot err';
+    label.textContent = 'sin conexión';
+  }
+}
+
+// ── LOGIN ──────────────────────────────────
+function doLogin() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const btn  = document.getElementById('login-btn');
+
+  if (!CAJEROS[user] || CAJEROS[user] !== pass) {
+    showToast('❌ Usuario o contraseña incorrectos', 'err');
+    return;
+  }
+
+  loggedUser = user;
+  btn.innerHTML = '<div class="spinner"></div>';
+  btn.disabled  = true;
+
+  const ok = initSupabase();
+
+  setTimeout(() => {
+    document.getElementById('screen-login').style.display = 'none';
+    const sm = document.getElementById('screen-main');
+    sm.style.display = 'flex';
+    sm.style.flexDirection = 'column';
+    document.getElementById('header-user').textContent = user;
+
+    if (ok) checkConn();
+
+    btn.innerHTML = 'Ingresar';
+    btn.disabled  = false;
+  }, 400);
+}
+
+// ── SCANNER ───────────────────────────────
+async function toggleScanner() {
+  scannerActive ? stopScanner() : await startScanner();
+}
+
+async function startScanner() {
+  const btn = document.getElementById('scan-btn');
+  btn.innerHTML = '<div class="spinner"></div> Iniciando...';
+  btn.disabled  = true;
+
+  try {
+    videoStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+
+    const video = document.getElementById('qr-video');
+    video.srcObject = videoStream;
+    await video.play();
+
+    document.getElementById('scan-placeholder').style.display = 'none';
+    document.getElementById('scan-overlay').style.display     = 'flex';
+    scannerActive = true;
+
+    btn.innerHTML = '⏹ Detener cámara';
+    btn.disabled  = false;
+    btn.className = 'btn btn-ghost';
+
+    scanInterval = setInterval(tickScan, 200);
+
+  } catch (err) {
+    console.error(err);
+    showToast('⚠ No se pudo acceder a la cámara', 'err');
+    btn.innerHTML = '📷 Activar cámara';
+    btn.disabled  = false;
+    btn.className = 'btn btn-primary';
+  }
+}
+
+function stopScanner() {
+  if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
+  clearInterval(scanInterval);
+  scannerActive = false;
+
+  const video = document.getElementById('qr-video');
+  video.srcObject = null;
+  document.getElementById('scan-placeholder').style.display = 'flex';
+  document.getElementById('scan-overlay').style.display     = 'none';
+
+  const btn = document.getElementById('scan-btn');
+  btn.innerHTML = '📷 Activar cámara';
+  btn.className = 'btn btn-primary';
+  btn.disabled  = false;
+}
+
+function tickScan() {
+  const video  = document.getElementById('qr-video');
+  const canvas = document.getElementById('qr-canvas');
+  if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx  = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+
+  if (code?.data) {
+    stopScanner();
+    buscarCliente(code.data.trim());
+  }
+}
+
+// ── BÚSQUEDA ──────────────────────────────
+async function buscarManual() {
+  const tel = document.getElementById('manual-tel').value.trim();
+  if (!tel) { showToast('⚠ Ingresá un teléfono', 'err'); return; }
+  buscarCliente(tel);
+}
+
+async function buscarCliente(valor) {
+  if (!db) { showToast('⚠ Supabase no configurado', 'err'); return; }
+
+  showToast('🔍 Buscando cliente...', '');
+
+  const { data, error } = await db
+    .from(TABLA)
+    .select('*')
+    .eq(COL_TELEFONO, valor)
+    .single();
+
+  if (error || !data) {
+    showToast('❌ Cliente no encontrado: ' + valor, 'err');
+    return;
+  }
+
+  mostrarCliente(data);
+}
+
+function mostrarCliente(c) {
+  clienteActual = c;
+
+  const nombre  = c[COL_NOMBRE] || c.name || c.apellido || c[COL_TELEFONO];
+  const inicial = nombre.charAt(0).toUpperCase();
+  const puntos  = c[COL_PUNTOS] || 0;
+
+  document.getElementById('c-avatar').textContent  = inicial;
+  document.getElementById('c-nombre').textContent  = nombre;
+  document.getElementById('c-tel').textContent     = '📱 ' + c[COL_TELEFONO];
+  document.getElementById('c-puntos').textContent  = puntos.toLocaleString('es-AR');
+
+  document.getElementById('monto').value           = '';
+  document.getElementById('pts-preview').textContent = '0 pts';
+  document.getElementById('pts-preview').className   = 'pr';
+
+  goStep('step-cliente');
+  setTimeout(() => document.getElementById('monto').focus(), 250);
+  showToast('✓ Cliente encontrado', 'ok');
+}
+
+// ── CÁLCULO ───────────────────────────────
+function calcPts() {
+  const monto = parseFloat(document.getElementById('monto').value) || 0;
+  const pts   = Math.floor(monto / PESOS_POR_PUNTO);
+  const el    = document.getElementById('pts-preview');
+  el.textContent = pts.toLocaleString('es-AR') + ' pts';
+  el.className   = pts > 0 ? 'pr has-pts' : 'pr';
+}
+
+// ── CONFIRMAR ─────────────────────────────
+async function confirmar() {
+  if (!db) { showToast('⚠ Supabase no configurado', 'err'); return; }
+
+  const monto = parseFloat(document.getElementById('monto').value) || 0;
+  const pts   = Math.floor(monto / PESOS_POR_PUNTO);
+
+  if (monto <= 0) { showToast('⚠ Ingresá el monto de la compra', 'err'); return; }
+  if (pts === 0)  { showToast('⚠ Monto mínimo $' + PESOS_POR_PUNTO.toLocaleString('es-AR'), 'err'); return; }
+
+  const btn = document.getElementById('btn-confirmar');
+  btn.disabled  = true;
+  btn.innerHTML = '<div class="spinner"></div> Procesando...';
+
+  try {
+    const puntosActuales = clienteActual[COL_PUNTOS] || 0;
+    const nuevoTotal     = puntosActuales + pts;
+
+    const { error } = await db
+      .from(TABLA)
+      .update({ [COL_PUNTOS]: nuevoTotal })
+      .eq(COL_TELEFONO, clienteActual[COL_TELEFONO]);
+
+    if (error) throw error;
+
+    // Intentar registrar en historial (silencioso si no existe)
+    await db.from('historial_puntos').insert({
+      telefono_cliente: clienteActual[COL_TELEFONO],
+      puntos_sumados:   pts,
+      monto_compra:     monto,
+      cajero:           loggedUser,
+      created_at:       new Date().toISOString()
+    }).then(()=>{}).catch(()=>{});
+
+    const nombre = clienteActual[COL_NOMBRE] || clienteActual[COL_TELEFONO];
+    document.getElementById('suc-pts').textContent    = '+' + pts.toLocaleString('es-AR');
+    document.getElementById('suc-detalle').textContent =
+      `Se sumaron ${pts} puntos a ${nombre}. Ahora tiene ${nuevoTotal.toLocaleString('es-AR')} puntos.`;
+
+    goStep('step-success');
+    showToast('✅ ¡' + pts + ' puntos asignados!', 'ok');
+
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Error al guardar. Intentá de nuevo.', 'err');
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = '✓ Confirmar y sumar puntos';
+  }
+}
+
+// ── HELPERS ───────────────────────────────
+function cancelar() { reset(); }
+
+function reset() {
+  clienteActual = null;
+  document.getElementById('manual-tel').value = '';
+  document.getElementById('monto').value      = '';
+  document.getElementById('manual-wrap').classList.remove('open');
+  goStep('step-scan');
+}
+
+function toggleManual() {
+  const w = document.getElementById('manual-wrap');
+  w.classList.toggle('open');
+  if (w.classList.contains('open'))
+    setTimeout(() => document.getElementById('manual-tel').focus(), 100);
+}
+
+function goStep(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+let toastTimer;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Enter en login
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('screen-login').style.display !== 'none') {
+    doLogin();
+  }
+});
+
+// Check config on load
+window.addEventListener('load', () => {
+  if (SUPABASE_URL === 'TU_SUPABASE_URL') {
+    document.getElementById('config-warning').style.display = 'block';
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Cajero – Asignar Puntos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --surface2: #1c1c27;
+      --border: #2a2a3a;
+      --accent: #7c6af7;
+      --accent2: #a78bfa;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --text: #f0f0f8;
+      --muted: #6b6b85;
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE TEXTURE ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: .4;
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 430px;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      padding: 20px 24px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      width: 38px; height: 38px;
+      background: var(--accent);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+
+    header h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.4px;
+    }
+
+    header span { font-size: 12px; color: var(--muted); display: block; }
+
+    .status-dot {
+      margin-left: auto;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .4; }
+    }
+
+    /* ── MAIN CONTENT ── */
+    main {
+      flex: 1;
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── SCANNER ── */
+    .scanner-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .scanner-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .scanner-header .icon {
+      font-size: 20px;
+    }
+
+    .scanner-header h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .scanner-body {
+      position: relative;
+      background: #000;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #qr-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    #qr-canvas { display: none; }
+
+    .scan-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .scan-frame {
+      width: 65%;
+      aspect-ratio: 1;
+      position: relative;
+    }
+
+    .scan-frame::before, .scan-frame::after,
+    .scan-frame .corner3, .scan-frame .corner4 {
+      content: '';
+      position: absolute;
+      width: 24px; height: 24px;
+      border-color: var(--accent2);
+      border-style: solid;
+    }
+    .scan-frame::before { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+    .scan-frame::after  { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+    .scan-frame .corner3 { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+    .scan-frame .corner4 { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+    .scan-line {
+      position: absolute;
+      left: 10%; right: 10%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+      animation: scanline 2s ease-in-out infinite;
+      box-shadow: 0 0 8px var(--accent2);
+    }
+
+    @keyframes scanline {
+      0% { top: 10%; opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { top: 90%; opacity: 0; }
+    }
+
+    .scanner-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: var(--surface2);
+    }
+
+    .scanner-placeholder .ph-icon {
+      font-size: 48px;
+      opacity: .4;
+    }
+
+    .scanner-placeholder p {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      max-width: 180px;
+      line-height: 1.5;
+    }
+
+    /* ── BTN ── */
+    .btn {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Syne', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:active { transform: scale(.97); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: var(--accent2); }
+
+    .btn-ghost {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-success {
+      background: var(--green);
+      color: #fff;
+    }
+
+    .btn-danger {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .btn:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    /* ── CLIENTE CARD ── */
+    .cliente-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      animation: slideUp .3s ease;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .cliente-header {
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #1e1b4b 0%, #2d1b69 100%);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .avatar {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Syne', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .cliente-info h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .cliente-info p {
+      font-size: 13px;
+      color: #a5b4fc;
+      margin-top: 2px;
+    }
+
+    .puntos-badge {
+      margin-left: auto;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .puntos-badge .num {
+      font-family: 'Syne', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--accent2);
+    }
+
+    .puntos-badge .label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    /* ── FORM PUNTOS ── */
+    .puntos-form {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .input-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-prefix {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 14px 14px 14px 32px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      outline: none;
+      transition: border-color .2s;
+      appearance: textfield;
+      -moz-appearance: textfield;
+    }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    input[type="number"]:focus {
+      border-color: var(--accent);
+    }
+
+    .puntos-preview {
+      background: var(--surface2);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .puntos-preview .left {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .puntos-preview .right {
+      font-family: 'Syne', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--green);
+    }
+
+    .puntos-preview .right small {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+      transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+      white-space: nowrap;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: var(--green); }
+    .toast.error   { border-color: var(--red); }
+
+    /* ── SUCCESS SCREEN ── */
+    .success-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 40px 20px;
+      text-align: center;
+      animation: slideUp .4s ease;
+    }
+
+    .success-icon {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: rgba(34,197,94,.15);
+      border: 2px solid var(--green);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      animation: popIn .4s cubic-bezier(.34,1.56,.64,1) .1s both;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0); }
+      to   { transform: scale(1); }
+    }
+
+    .success-screen h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .success-screen p { color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+    .success-screen .highlight {
+      color: var(--green);
+      font-family: 'Syne', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+    }
+
+    /* ── LOGIN ── */
+    .login-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      gap: 32px;
+    }
+
+    .login-logo {
+      width: 72px; height: 72px;
+      background: var(--accent);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      box-shadow: 0 20px 60px rgba(124,106,247,.4);
+    }
+
+    .login-title {
+      text-align: center;
+    }
+
+    .login-title h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+    }
+
+    .login-title p { color: var(--muted); font-size: 14px; margin-top: 6px; }
+
+    .login-form {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .login-form input {
+      width: 100%;
+      padding: 15px 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .login-form input:focus { border-color: var(--accent); }
+    .login-form input::placeholder { color: var(--muted); }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-logo">⚡</div>
+    <div class="login-title">
+      <h1>Cajero</h1>
+      <p>Ingresá con tu usuario para continuar</p>
+    </div>
+    <div class="login-form">
+      <input type="text" id="login-user" placeholder="Usuario" autocomplete="username" />
+      <input type="password" id="login-pass" placeholder="Contraseña" autocomplete="current-password" />
+      <button class="btn btn-primary" onclick="handleLogin()">
+        <span id="login-btn-text">Ingresar</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN SCREEN -->
+  <div id="main-screen" class="hidden" style="display:flex; flex-direction:column; width:100%;">
+    <header>
+      <div class="logo">⚡</div>
+      <div>
+        <h1>Asignar Puntos</h1>
+        <span id="cajero-name">Cajero</span>
+      </div>
+      <div class="status-dot" id="conn-dot"></div>
+    </header>
+
+    <main id="main-content">
+      <!-- STEP 1: SCANNER -->
+      <div id="step-scan">
+        <div class="scanner-card">
+          <div class="scanner-header">
+            <span class="icon">📷</span>
+            <h2>Escanear QR del cliente</h2>
+          </div>
+          <div class="scanner-body" id="scanner-body">
+            <div class="scanner-placeholder" id="scanner-placeholder">
+              <div class="ph-icon">⬛</div>
+              <p>Presioná el botón para activar la cámara</p>
+            </div>
+            <video id="qr-video" autoplay playsinline></video>
+            <canvas id="qr-canvas"></canvas>
+            <div class="scan-overlay" id="scan-overlay" style="display:none;">
+              <div class="scan-frame">
+                <div class="corner3"></div>
+                <div class="corner4"></div>
+                <div class="scan-line"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="scan-btn" onclick="toggleScanner()">
+          📷 Activar Cámara
+        </button>
+
+        <!-- Manual fallback -->
+        <div style="text-align:center; margin-top:4px;">
+          <button onclick="toggleManual()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;text-decoration:underline;">
+            Ingresar teléfono manualmente
+          </button>
+        </div>
+
+        <div id="manual-input" class="hidden">
+          <div class="input-group" style="margin-top:8px;">
+            <label>Teléfono del cliente</label>
+            <div class="input-wrap">
+              <span class="input-prefix">📱</span>
+              <input type="number" id="manual-tel" placeholder="Ej: 1112345678"
+                style="padding-left:36px; font-size:16px;"
+                onkeydown="if(event.key==='Enter') buscarPorTelefono()" />
+            </div>
+          </div>
+          <button class="btn btn-ghost" style="margin-top:10px;" onclick="buscarPorTelefono()">
+            🔍 Buscar cliente
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 2: CLIENTE + PUNTOS -->
+      <div id="step-cliente" class="hidden">
+        <div class="cliente-card" id="cliente-card">
+          <div class="cliente-header">
+            <div class="avatar" id="cliente-avatar">?</div>
+            <div class="cliente-info">
+              <h3 id="cliente-nombre">—</h3>
+              <p id="cliente-tel">—</p>
+            </div>
+            <div class="puntos-badge">
+              <div class="num" id="cliente-puntos">0</div>
+              <div class="label">puntos</div>
+            </div>
+          </div>
+          <div class="puntos-form">
+            <div class="input-group">
+              <label>Monto de la compra</label>
+              <div class="input-wrap">
+                <span class="input-prefix">$</span>
+                <input type="number" id="monto-input" placeholder="0"
+                  oninput="calcularPuntos()" />
+              </div>
+            </div>
+            <div class="puntos-preview">
+              <div class="left">Puntos a sumar</div>
+              <div class="right" id="puntos-preview">
+                0 <small>pts</small>
+              </div>
+            </div>
+            <button class="btn btn-success" onclick="confirmarPuntos()" id="confirm-btn">
+              ✓ Confirmar y sumar puntos
+            </button>
+            <button class="btn btn-ghost" onclick="resetFlow()">
+              ✕ Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: SUCCESS -->
+      <div id="step-success" class="success-screen hidden">
+        <div class="success-icon">✓</div>
+        <div class="highlight" id="success-pts">+0 pts</div>
+        <h2>¡Puntos asignados!</h2>
+        <p id="success-detail">Los puntos fueron sumados correctamente.</p>
+        <button class="btn btn-primary" onclick="resetFlow()" style="width:100%;">
+          Siguiente cliente →
+        </button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════
+//  CONFIGURACIÓN — reemplazá con tus valores
+// ════════════════════════════════════════════
+const SUPABASE_URL  = 'TU_SUPABASE_URL';       // ej: https://abcxyz.supabase.co
+const SUPABASE_KEY  = 'TU_ANON_KEY';            // eyJ...
+const PESOS_POR_PUNTO = 1000;                   // $1000 = 1 punto
+
+// Usuarios cajeros (usuario: contraseña)
+// Podés agregar todos los cajeros que necesites
+const CAJEROS = {
+  'cajero1': '1234',
+  'admin':   'admin123',
+};
+
+// ════════════════════════════════════════════
+const { createClient } = supabase;
+let db = null;
+
+// Evita que un error de configuración de Supabase rompa todo el script
+try {
+  const hasValidConfig =
+    SUPABASE_URL &&
+    SUPABASE_KEY &&
+    SUPABASE_URL !== 'TU_SUPABASE_URL' &&
+    SUPABASE_KEY !== 'TU_ANON_KEY';
+
+  if (hasValidConfig) {
+    db = createClient(SUPABASE_URL, SUPABASE_KEY);
+  }
+} catch (err) {
+  console.warn('Supabase no configurado correctamente:', err);
+}
+
+let currentCliente = null;
+let scannerActive  = false;
+let videoStream    = null;
+let scanInterval   = null;
+let loggedUser     = null;
+
+function canUseDatabase() {
+  if (db) return true;
+  showToast('⚠️ Configurá SUPABASE_URL y SUPABASE_KEY para buscar clientes', 'error');
+  return false;
+}
+
+// ── LOGIN ──────────────────────────────────
+function handleLogin() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const btn  = document.getElementById('login-btn-text');
+
+  if (!CAJEROS[user] || CAJEROS[user] !== pass) {
+    showToast('❌ Usuario o contraseña incorrectos', 'error');
+    return;
+  }
+
+  loggedUser = user;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  setTimeout(() => {
+    document.getElementById('login-screen').classList.add('hidden');
+    const ms = document.getElementById('main-screen');
+    ms.classList.remove('hidden');
+    ms.style.display = 'flex';
+    document.getElementById('cajero-name').textContent = user;
+  }, 400);
+}
+
+// Allow Enter key on login
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !document.getElementById('login-screen').classList.contains('hidden')) {
+    handleLogin();
+  }
+});
+
+// ── SCANNER ───────────────────────────────
+async function toggleScanner() {
+  if (scannerActive) {
+    stopScanner();
+  } else {
+    await startScanner();
+  }
+}
+
+async function startScanner() {
+  const btn = document.getElementById('scan-btn');
+  btn.innerHTML = '<span class="spinner"></span> Iniciando...';
+  btn.disabled = true;
+
+  try {
+    videoStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+
+    const video = document.getElementById('qr-video');
+    video.srcObject = videoStream;
+    await video.play();
+
+    document.getElementById('scanner-placeholder').style.display = 'none';
+    document.getElementById('scan-overlay').style.display = 'flex';
+    scannerActive = true;
+
+    btn.innerHTML  = '⏹ Detener cámara';
+    btn.disabled   = false;
+    btn.className  = 'btn btn-ghost';
+
+    // Tick de escaneo
+    scanInterval = setInterval(() => tickScan(), 250);
+
+  } catch (err) {
+    console.error(err);
+    showToast('⚠️ No se pudo acceder a la cámara', 'error');
+    btn.innerHTML = '📷 Activar Cámara';
+    btn.disabled  = false;
+    btn.className = 'btn btn-primary';
+  }
+}
+
+function stopScanner() {
+  if (videoStream) {
+    videoStream.getTracks().forEach(t => t.stop());
+    videoStream = null;
+  }
+  clearInterval(scanInterval);
+  scannerActive = false;
+
+  const video = document.getElementById('qr-video');
+  video.srcObject = null;
+  document.getElementById('scanner-placeholder').style.display = 'flex';
+  document.getElementById('scan-overlay').style.display = 'none';
+
+  const btn = document.getElementById('scan-btn');
+  btn.innerHTML = '📷 Activar Cámara';
+  btn.className = 'btn btn-primary';
+  btn.disabled  = false;
+}
+
+function tickScan() {
+  const video  = document.getElementById('qr-video');
+  const canvas = document.getElementById('qr-canvas');
+  if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+  canvas.width  = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+
+  if (code && code.data) {
+    stopScanner();
+    processQR(code.data);
+  }
+}
+
+// ── PROCESO QR ───────────────────────────
+async function processQR(data) {
+  if (!canUseDatabase()) return;
+
+  showToast('🔍 Buscando cliente...', '');
+
+  // El QR puede contener el token o el teléfono directo
+  // Primero intentamos por qr_token, luego por teléfono
+  let cliente = null;
+
+  // Intento 1: por qr_token
+  const { data: byToken } = await db
+    .from('clientes')
+    .select('*')
+    .eq('qr_token', data)
+    .single();
+
+  if (byToken) {
+    cliente = byToken;
+  } else {
+    // Intento 2: el QR contiene el teléfono directamente
+    const { data: byTel } = await db
+      .from('clientes')
+      .select('*')
+      .eq('telefono', data)
+      .single();
+    if (byTel) cliente = byTel;
+  }
+
+  if (!cliente) {
+    showToast('❌ Cliente no encontrado', 'error');
+    return;
+  }
+
+  mostrarCliente(cliente);
+}
+
+async function buscarPorTelefono() {
+  if (!canUseDatabase()) return;
+
+  const tel = document.getElementById('manual-tel').value.trim();
+  if (!tel) { showToast('⚠️ Ingresá un teléfono', 'error'); return; }
+
+  showToast('🔍 Buscando...', '');
+
+  const { data, error } = await db
+    .from('clientes')
+    .select('*')
+    .eq('telefono', tel)
+    .single();
+
+  if (error || !data) {
+    showToast('❌ Cliente no encontrado', 'error');
+    return;
+  }
+
+  mostrarCliente(data);
+}
+
+function mostrarCliente(cliente) {
+  currentCliente = cliente;
+
+  // Nombre (probamos campos comunes)
+  const nombre = cliente.nombre || cliente.name || cliente.apellido || 'Sin nombre';
+  const inicial = nombre.charAt(0).toUpperCase();
+
+  document.getElementById('cliente-avatar').textContent = inicial;
+  document.getElementById('cliente-nombre').textContent = nombre;
+  document.getElementById('cliente-tel').textContent    = '📱 ' + (cliente.telefono || '—');
+  document.getElementById('cliente-puntos').textContent = (cliente.Puntos || 0).toLocaleString('es-AR');
+
+  document.getElementById('monto-input').value = '';
+  document.getElementById('puntos-preview').innerHTML = '0 <small>pts</small>';
+
+  show('step-cliente');
+  hide('step-scan');
+  hide('step-success');
+
+  setTimeout(() => document.getElementById('monto-input').focus(), 300);
+}
+
+// ── CÁLCULO DE PUNTOS ─────────────────────
+function calcularPuntos() {
+  const monto = parseFloat(document.getElementById('monto-input').value) || 0;
+  const pts   = Math.floor(monto / PESOS_POR_PUNTO);
+  document.getElementById('puntos-preview').innerHTML =
+    `<span style="color:${pts > 0 ? 'var(--green)' : 'var(--muted)'}">${pts}</span> <small>pts</small>`;
+}
+
+// ── CONFIRMAR PUNTOS ──────────────────────
+async function confirmarPuntos() {
+  if (!canUseDatabase()) return;
+
+  const monto = parseFloat(document.getElementById('monto-input').value) || 0;
+  const pts   = Math.floor(monto / PESOS_POR_PUNTO);
+
+  if (monto <= 0) { showToast('⚠️ Ingresá el monto de la compra', 'error'); return; }
+  if (pts === 0)  { showToast('⚠️ El monto no alcanza 1 punto ($1.000 mínimo)', 'error'); return; }
+
+  const btn = document.getElementById('confirm-btn');
+  btn.disabled  = true;
+  btn.innerHTML = '<span class="spinner"></span> Procesando...';
+
+  try {
+    const puntosActuales = currentCliente.Puntos || 0;
+    const nuevosPuntos   = puntosActuales + pts;
+
+    const { error } = await db
+      .from('clientes')
+      .update({ Puntos: nuevosPuntos })
+      .eq('telefono', currentCliente.telefono);
+
+    if (error) throw error;
+
+    // Registrar en historial si existe la tabla
+    await db.from('historial_puntos').insert({
+      telefono_cliente: currentCliente.telefono,
+      puntos_sumados:   pts,
+      monto_compra:     monto,
+      cajero:           loggedUser,
+      created_at:       new Date().toISOString()
+    }).then(() => {}).catch(() => {}); // silencioso si no existe la tabla
+
+    // SUCCESS
+    document.getElementById('success-pts').textContent    = `+${pts} pts`;
+    document.getElementById('success-detail').textContent =
+      `Se sumaron ${pts} puntos a ${currentCliente.nombre || currentCliente.telefono}. Ahora tiene ${nuevosPuntos.toLocaleString('es-AR')} puntos en total.`;
+
+    hide('step-cliente');
+    show('step-success');
+    showToast('✅ Puntos asignados correctamente', 'success');
+
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Error al asignar puntos. Intentá de nuevo.', 'error');
+    btn.disabled  = false;
+    btn.innerHTML = '✓ Confirmar y sumar puntos';
+  }
+}
+
+// ── RESET ─────────────────────────────────
+function resetFlow() {
+  currentCliente = null;
+  document.getElementById('monto-input').value = '';
+  document.getElementById('manual-tel').value  = '';
+  hide('step-cliente');
+  hide('step-success');
+  show('step-scan');
+}
+
+function toggleManual() {
+  const el = document.getElementById('manual-input');
+  el.classList.toggle('hidden');
+  if (!el.classList.contains('hidden')) {
+    setTimeout(() => document.getElementById('manual-tel').focus(), 100);
+  }
+}
+
+// ── HELPERS ───────────────────────────────
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+let toastTimer;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent  = msg;
+  t.className    = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
