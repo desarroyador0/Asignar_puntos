@@ -62,7 +62,7 @@ export default async (req, _context) => {
     {
       const { data, error } = await supabaseAdmin
         .from('Clientes')
-        .select('Telef,Puntos,Nombre,Apellido')
+        .select('Telef,Puntos,Nombre')
         .eq('Telef', telefono)
         .single()
 
@@ -81,7 +81,7 @@ export default async (req, _context) => {
     if (!cliente) {
       const { data, error } = await supabaseAdmin
         .from('Clientes')
-        .select('Telef,Puntos')
+        .select('Telef,Nombre,Puntos')
         .eq('Telef', telefono)
         .single()
 
@@ -97,7 +97,7 @@ export default async (req, _context) => {
         cliente: {
           telefono: cliente.Telef ?? telefono,
           puntos: cliente.Puntos ?? 0,
-          nombre: formatNombre(cliente),
+          nombre: formatNombre(cliente.Nombre),
         },
       },
       200,

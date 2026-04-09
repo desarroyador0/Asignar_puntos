@@ -70,11 +70,9 @@ export default async (req, _context) => {
     }
 
     const { error: historialError } = await supabaseAdmin.from('Historial_Puntos').insert({
-      telefono_cliente: telefono,
-      puntos_sumados: puntos,
-      monto_compra: monto || 0,
-      cajero: cajero || 'desconocido',
-      created_at: new Date().toISOString()
+      Telef_cliente: telefono,
+      Cantidad_Puntos: puntos,
+      Monto_gastado: monto || 0,
     })
 
     if (historialError) {
