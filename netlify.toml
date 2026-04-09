@@ -1,4 +1,7 @@
 [[edge_functions]]
 function = "index"
 path = "/api/asignar-puntos"
-mthod= "POST"
+
+[[edge_functions]]
+function = "cliente"
+path = "/api/cliente"

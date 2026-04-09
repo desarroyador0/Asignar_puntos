@@ -1,6 +1,7 @@
 // Configuracion de Frontend
 // Endpoint de Netlify Edge Function (route definida en netlify.toml)
 const EDGE_FUNCTION_URL = '/api/asignar-puntos';
+const EDGE_CLIENTE_URL = '/api/cliente';
 const PESOS_POR_PUNTO = 1000;
 
 // Estado de la app
@@ -174,7 +175,7 @@ document.getElementById('btn-search').addEventListener('click', () => {
 });
 
 // Procesar el cliente escaneado o buscado
-function procesarCliente(telefono) {
+async function procesarCliente(telefono) {
     // Validacion basica de formato (asumiendo numerico o que tenga longitud)
     const telSanitizado = telefono.replace(/[^+0-9]/g, '');
     if (!telSanitizado) {
@@ -183,18 +184,49 @@ function procesarCliente(telefono) {
         return;
     }
 
-    state.clienteActivo = { telefono: telSanitizado };
+    state.clienteActivo = { telefono: telSanitizado, datos: null };
     
     // UI Updates
-    document.getElementById('c-name').textContent = "Cliente Encontrado";
+    document.getElementById('c-name').textContent = "Cargando...";
     document.getElementById('c-tel').textContent = telSanitizado;
     document.getElementById('c-avatar').textContent = telSanitizado.charAt(telSanitizado.length-1) || "?";
+    document.getElementById('c-pts').textContent = 'Puntos actuales: ...';
     
     document.getElementById('monto').value = '';
     document.getElementById('pts-preview').textContent = '0';
     
     UI.showSection('section-action');
-    setTimeout(() => document.getElementById('monto').focus(), 300);
+
+    try {
+        const response = await fetch(`${EDGE_CLIENTE_URL}?telefono=${encodeURIComponent(telSanitizado)}`);
+        if (!response.ok) {
+            let errBody = {};
+            try { errBody = await response.json(); } catch(e){}
+            throw new Error(errBody.error || `Error HTTP: ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
+        const cliente = result.cliente || {};
+        state.clienteActivo.datos = cliente;
+
+        const nombre = (cliente.nombre || '').trim();
+        const puntos = Number(cliente.puntos ?? 0);
+
+        document.getElementById('c-name').textContent = nombre || 'Cliente Encontrado';
+        document.getElementById('c-pts').textContent = `Puntos actuales: ${puntos.toLocaleString('es-AR')}`;
+
+        setTimeout(() => document.getElementById('monto').focus(), 300);
+    } catch (error) {
+        console.error('Error recuperando cliente:', error);
+        UI.toast(error.message || 'No se pudo recuperar el cliente', 'error');
+        state.clienteActivo = null;
+        UI.showSection('section-scan');
+        initScanner();
+    }
 }
 
 // Cancelar asignacion

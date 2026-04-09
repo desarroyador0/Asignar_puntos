@@ -69,7 +69,7 @@ export default async (req, _context) => {
       throw new Error(`Error al actualizar puntos: ${updateError.message}`)
     }
 
-    const { error: historialError } = await supabaseAdmin.from('historial_puntos').insert({
+    const { error: historialError } = await supabaseAdmin.from('Historial_Puntos').insert({
       telefono_cliente: telefono,
       puntos_sumados: puntos,
       monto_compra: monto || 0,
