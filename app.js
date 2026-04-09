@@ -1,6 +1,6 @@
-// Configuración de Frontend
-// La URL Base de las Edge Functions de Supabase (reemplazar por la tuya)
-const EDGE_FUNCTION_URL = 'https://qxbkfmvugutmggqwxhrb.supabase.co/functions/v1/asignar-puntos'; 
+// Configuracion de Frontend
+// Endpoint de Netlify Edge Function (route definida en netlify.toml)
+const EDGE_FUNCTION_URL = '/api/asignar-puntos';
 const PESOS_POR_PUNTO = 1000;
 
 // Estado de la app

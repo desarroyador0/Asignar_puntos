@@ -1,29 +1,46 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-serve(async (req) => {
-  // Manejo de pre-flight CORS
+function getEnv(name) {
+  if (typeof Netlify !== 'undefined' && Netlify.env) {
+    return Netlify.env.get(name)
+  }
+  return Deno.env.get(name)
+}
+
+function jsonResponse(payload, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+export default async (req, _context) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  try {
-    // Variables de entorno de Supabase 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  if (req.method !== 'POST') {
+    return jsonResponse({ error: 'Method not allowed' }, 405)
+  }
 
-    // Crear cliente usando SERVICE_ROLE para bypass de RLS (Seguro en Edge Function)
+  try {
+    const supabaseUrl = getEnv('SUPABASE_URL')
+    const supabaseServiceKey = getEnv('SUPABASE_SERVICE_ROLE_KEY')
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY en variables de entorno')
+    }
+
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Parse del body de la request
     const { telefono, puntos, cajero, monto } = await req.json()
 
-    // Validaciones basicas
     if (!telefono || !puntos || puntos <= 0) {
       throw new Error('Parámetros inválidos. Se requiere telefono y puntos válidos.')
     }
@@ -52,8 +69,7 @@ serve(async (req) => {
       throw new Error(`Error al actualizar puntos: ${updateError.message}`)
     }
 
-    // 3. Registrar en el historial de forma asíncrona pero esperando confirmación
-    await supabaseAdmin.from('historial_puntos').insert({
+    const { error: historialError } = await supabaseAdmin.from('historial_puntos').insert({
       telefono_cliente: telefono,
       puntos_sumados: puntos,
       monto_compra: monto || 0,
@@ -61,21 +77,12 @@ serve(async (req) => {
       created_at: new Date().toISOString()
     })
 
-    // Retornar éxito
-    return new Response(
-      JSON.stringify({ success: true, nuevoTotal }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    )
+    if (historialError) {
+      throw new Error(`Error al guardar historial: ${historialError.message}`)
+    }
+
+    return jsonResponse({ success: true, nuevoTotal }, 200)
   } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
-    )
+    return jsonResponse({ error: error.message || 'Unexpected error' }, 400)
   }
-})
+}
