@@ -14,16 +14,30 @@ const state = {
 // Utilidades UI
 const UI = {
     showScreen: (id) => {
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
+        document.querySelectorAll('.screen').forEach(s => {
+            s.classList.remove('active');
+            s.classList.add('hidden');
+        });
+        const target = document.getElementById(id);
+        target.classList.remove('hidden');
+        target.classList.add('active');
     },
     showSection: (id) => {
-        document.querySelectorAll('.section-card').forEach(s => s.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
+        document.querySelectorAll('.section-card').forEach(s => {
+            s.classList.remove('active');
+            s.classList.add('hidden');
+        });
+        const target = document.getElementById(id);
+        target.classList.remove('hidden');
+        target.classList.add('active');
         if (id === 'section-scan') {
-             document.getElementById('section-history').classList.add('active');
+             const history = document.getElementById('section-history');
+             history.classList.remove('hidden');
+             history.classList.add('active');
         } else {
-             document.getElementById('section-history').classList.remove('active');
+             const history = document.getElementById('section-history');
+             history.classList.remove('active');
+             history.classList.add('hidden');
         }
     },
     toast: (msg, type = 'success') => {
