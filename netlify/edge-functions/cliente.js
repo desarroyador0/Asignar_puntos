@@ -1,7 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  // Keep wildcard by default to avoid breaking existing deployments.
+  // Set ALLOWED_ORIGIN in Netlify env to lock this down.
+  'Access-Control-Allow-Origin': getEnv('ALLOWED_ORIGIN') || '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
 }

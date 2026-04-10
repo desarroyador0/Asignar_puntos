@@ -1,10 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  // Keep wildcard by default to avoid breaking existing deployments.
+  // Set ALLOWED_ORIGIN in Netlify env to lock this down.
+  'Access-Control-Allow-Origin': getEnv('ALLOWED_ORIGIN') || '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
+
+const PESOS_POR_PUNTO = Number(getEnv('PESOS_POR_PUNTO') || 1000)
 
 function getEnv(name) {
   if (typeof Netlify !== 'undefined' && Netlify.env) {
@@ -18,6 +22,10 @@ function jsonResponse(payload, status = 200) {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
+}
+
+function sanitizeTelefono(input) {
+  return String(input || '').replace(/[^+0-9]/g, '')
 }
 
 export default async (req, _context) => {
@@ -39,10 +47,29 @@ export default async (req, _context) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    const { telefono, puntos, cajero, monto } = await req.json()
+    const { telefono: telefonoRaw, cajero, monto: montoRaw } = await req.json()
 
-    if (!telefono || !puntos || puntos <= 0) {
-      throw new Error('Parámetros inválidos. Se requiere telefono y puntos válidos.')
+    const telefono = sanitizeTelefono(telefonoRaw)
+    const monto = Number(montoRaw)
+    const cajeroId = String(cajero || '').trim()
+
+    if (!telefono) {
+      throw new Error('Parámetros inválidos. Se requiere telefono válido.')
+    }
+
+    if (!Number.isFinite(monto) || monto <= 0) {
+      throw new Error('Parámetros inválidos. Se requiere monto válido.')
+    }
+
+    // Optional lightweight guard to avoid absurd payloads.
+    if (cajeroId.length > 80) {
+      throw new Error('Parámetros inválidos. cajero demasiado largo.')
+    }
+
+    const puntos = Math.floor(monto / PESOS_POR_PUNTO)
+
+    if (puntos < 1) {
+      throw new Error(`El monto mínimo es $${PESOS_POR_PUNTO}`)
     }
 
     // 1. Obtener puntos actuales
@@ -72,14 +99,14 @@ export default async (req, _context) => {
     const { error: historialError } = await supabaseAdmin.from('Historial_Puntos').insert({
       Telef_cliente: telefono,
       Cantidad_Puntos: puntos,
-      Monto_gastado: monto || 0,
+      Monto_gastado: monto,
     })
 
     if (historialError) {
       throw new Error(`Error al guardar historial: ${historialError.message}`)
     }
 
-    return jsonResponse({ success: true, nuevoTotal }, 200)
+    return jsonResponse({ success: true, nuevoTotal, puntosAsignados: puntos }, 200)
   } catch (error) {
     return jsonResponse({ error: error.message || 'Unexpected error' }, 400)
   }

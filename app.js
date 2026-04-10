@@ -249,13 +249,13 @@ document.getElementById('puntos-form').addEventListener('submit', async (e) => {
     if (!state.clienteActivo) return;
 
     const monto = parseFloat(document.getElementById('monto').value) || 0;
-    const puntos = Math.floor(monto / PESOS_POR_PUNTO);
+    const puntosEstimados = Math.floor(monto / PESOS_POR_PUNTO);
 
     if (monto <= 0) {
         UI.toast('Ingresa un monto válido', 'warning');
         return;
     }
-    if (puntos < 1) {
+    if (puntosEstimados < 1) {
         UI.toast(`El monto mínimo es $${PESOS_POR_PUNTO}`, 'warning');
         return;
     }
@@ -265,7 +265,6 @@ document.getElementById('puntos-form').addEventListener('submit', async (e) => {
     const payload = {
         telefono: state.clienteActivo.telefono,
         monto: monto,
-        puntos: puntos,
         cajero: state.cajero
     };
 
@@ -291,9 +290,12 @@ document.getElementById('puntos-form').addEventListener('submit', async (e) => {
             throw new Error(result.error);
         }
 
+        const puntosAsignados = Number(result.puntosAsignados ?? puntosEstimados);
+        const nuevoTotal = Number(result.nuevoTotal ?? 0);
+
         // Éxito real
-        UI.toast(`¡Sumaste ${puntos} puntos! Nuevo total: ${result.nuevoTotal}`, 'success');
-        state.historial.push(payload);
+        UI.toast(`¡Sumaste ${puntosAsignados} puntos! Nuevo total: ${nuevoTotal}`, 'success');
+        state.historial.push({ ...payload, puntos: puntosAsignados });
         UI.updateHistory();
         
         // Volver a scan
