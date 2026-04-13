@@ -21,25 +21,44 @@
     
     <!-- PANTALLA LOGIN -->
     <div id="screen-login" class="screen active">
-      <div class="login-box glass-panel">
-        <div class="logo-box pulse">⚡</div>
-        <h2 class="title-main">Acceso Cajeros</h2>
-        <p class="subtitle">Validación Segura de Sesión</p>
+      <div class="login-wrapper">
+        <!-- Decoración superior -->
+        <div class="login-decoration"></div>
         
-        <form id="login-form" autocomplete="off">
-          <div class="input-group">
-            <label class="title-main">Bienvenido</label>
-            <p class="subtitle" style="margin-bottom: 20px;">Administrador del El Lote</p>
+        <!-- Contenedor principal -->
+        <div class="login-container">
+          <!-- Branding -->
+          <div class="login-branding">
+            <div class="logo-box-large">⚡</div>
+            <h1 class="welcome-title">Bienvenido</h1>
+            <p class="welcome-subtitle">Administrador del El Lote</p>
           </div>
-          <div class="input-group">
-            <label for="login-pass">Contraseña</label>
-            <input type="password" id="login-pass" placeholder="••••••••" required/>
-          </div>
-          <button type="submit" class="btn btn-primary" id="btn-login">
-            <span class="btn-text">Ingresar Seguramente</span>
-            <div class="spinner hidden" id="login-spinner"></div>
-          </button>
-        </form>
+          
+          <!-- Formulario -->
+          <form id="login-form" autocomplete="off" class="login-form">
+            <div class="form-wrapper">
+              <div class="input-group login-input-group">
+                <label for="login-pass" class="input-label">Contraseña de acceso</label>
+                <div class="input-wrapper">
+                  <svg class="input-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                  <input type="password" id="login-pass" placeholder="Ingresa tu contraseña" required class="input-field"/>
+                </div>
+              </div>
+              
+              <button type="submit" class="btn btn-login-primary" id="btn-login">
+                <span class="btn-text">Acceder Ahora</span>
+                <div class="spinner hidden" id="login-spinner"></div>
+                <svg class="btn-icon" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M5 12h14M12 5l7 7-7 7"></path></svg>
+              </button>
+            </div>
+          </form>
+          
+          <!-- Footer info -->
+          <p class="login-footer">Sistema Seguro de Gestión de Puntos</p>
+        </div>
+        
+        <!-- Decoración inferior -->
+        <div class="login-decoration-bottom"></div>
       </div>
     </div>
     
@@ -84,12 +103,20 @@
 
         <!-- SECCIÓN DE ASIGNACIÓN (Oculta inicialmente) -->
         <section id="section-action" class="section-card glass-panel flex-col hidden">
-          <div class="cliente-profile">
-            <div class="avatar" id="c-avatar">C</div>
-            <div class="cliente-info">
-              <h3 id="c-name">Cargando...</h3>
-              <p id="c-tel">...</p>
-              <p id="c-pts">Puntos actuales: ...</p>
+          <div class="cliente-card">
+            <div class="cliente-profile">
+              <div class="avatar-shell">
+                <div class="avatar" id="c-avatar">C</div>
+              </div>
+              <div class="cliente-info">
+                <div class="cliente-topline">
+                  <span class="cliente-badge">Cliente activo</span>
+                  <span class="cliente-status">Verificado</span>
+                </div>
+                <h3 id="c-name">Cargando...</h3>
+                <p id="c-tel">...</p>
+                <p id="c-pts">Puntos actuales: ...</p>
+              </div>
             </div>
           </div>
           
@@ -100,7 +127,10 @@
             </div>
             
             <div class="puntos-preview glass-inset">
-              <span class="preview-label">Puntos a asignar:</span>
+              <div class="preview-copy">
+                <span class="preview-label">Puntos a asignar</span>
+                <span class="preview-help">Se calculan automáticamente según el monto.</span>
+              </div>
               <span class="preview-value" id="pts-preview">0</span>
             </div>
             
