@@ -92,6 +92,54 @@ const UI = {
     }
 };
 
+function setOfflineBannerVisible(show) {
+    const banner = document.getElementById('offline-banner');
+    if (!banner) return;
+    banner.classList.toggle('hidden', !show);
+}
+
+function updateOfflineStatus() {
+    setOfflineBannerVisible(!navigator.onLine);
+}
+
+async function retryConnection() {
+    const btn = document.getElementById('btn-retry-connection');
+    if (!btn) return;
+
+    btn.disabled = true;
+    const previousText = btn.textContent;
+    btn.textContent = 'Verificando...';
+
+    try {
+        await fetch('/manifest.json', { cache: 'no-store' });
+        setOfflineBannerVisible(false);
+        UI.toast('Conexion recuperada', 'success');
+    } catch (error) {
+        UI.toast('Sin conexion todavia. Revisa Wi-Fi o datos moviles.', 'warning');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = previousText;
+    }
+}
+
+window.addEventListener('online', updateOfflineStatus);
+window.addEventListener('offline', updateOfflineStatus);
+
+const retryButton = document.getElementById('btn-retry-connection');
+if (retryButton) {
+    retryButton.addEventListener('click', retryConnection);
+}
+
+updateOfflineStatus();
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(error => {
+            console.warn('No se pudo registrar el service worker:', error);
+        });
+    });
+}
+
 // Login real con backend
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
