@@ -1,4 +1,4 @@
-import { handleLogin, handleLogout } from './_auth.js'
+import { handleLogin, handleLogout } from '../lib/_auth.js'
 
 export default async (req, _context) => {
   const url = new URL(req.url)

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { requireAuth, jsonResponse as authJsonResponse, getCorsHeadersForRequest } from './_auth.js'
+import { requireAuth, jsonResponse as authJsonResponse, getCorsHeadersForRequest } from '../lib/_auth.js'
 
 const PESOS_POR_PUNTO = Number(getEnv('PESOS_POR_PUNTO') || 1000)
 
