@@ -1,4 +1,14 @@
 [[edge_functions]]
+function = "auth"
+path = "/api/login"
+method = "POST"
+
+[[edge_functions]]
+function = "auth"
+path = "/api/logout"
+method = "POST"
+
+[[edge_functions]]
 function = "index"
 path = "/api/asignar-puntos"
 method = "POST"

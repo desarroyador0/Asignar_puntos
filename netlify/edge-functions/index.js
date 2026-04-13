@@ -1,12 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  // Keep wildcard by default to avoid breaking existing deployments.
-  // Set ALLOWED_ORIGIN in Netlify env to lock this down.
-  'Access-Control-Allow-Origin': getEnv('ALLOWED_ORIGIN') || '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+import { requireAuth, jsonResponse as authJsonResponse, getCorsHeadersForRequest } from './_auth.js'
 
 const PESOS_POR_PUNTO = Number(getEnv('PESOS_POR_PUNTO') || 1000)
 
@@ -20,7 +13,7 @@ function getEnv(name) {
 function jsonResponse(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
   })
 }
 
@@ -30,11 +23,16 @@ function sanitizeTelefono(input) {
 
 export default async (req, _context) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: getCorsHeadersForRequest(req) })
   }
 
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405)
+  }
+
+  const auth = await requireAuth(req)
+  if (!auth.ok) {
+    return authJsonResponse({ error: auth.error }, auth.status, req)
   }
 
   try {
@@ -47,11 +45,11 @@ export default async (req, _context) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    const { telefono: telefonoRaw, cajero, monto: montoRaw } = await req.json()
+    const { telefono: telefonoRaw, monto: montoRaw } = await req.json()
 
     const telefono = sanitizeTelefono(telefonoRaw)
     const monto = Number(montoRaw)
-    const cajeroId = String(cajero || '').trim()
+    const cajeroId = String(auth.user || '').trim()
 
     if (!telefono) {
       throw new Error('Parámetros inválidos. Se requiere telefono válido.')

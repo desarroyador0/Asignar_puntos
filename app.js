@@ -2,7 +2,10 @@
 // Endpoint de Netlify Edge Function (route definida en netlify.toml)
 const EDGE_FUNCTION_URL = '/api/asignar-puntos';
 const EDGE_CLIENTE_URL = '/api/cliente';
+const EDGE_LOGIN_URL = '/api/login';
+const EDGE_LOGOUT_URL = '/api/logout';
 const PESOS_POR_PUNTO = 1000;
+const ADMIN_NAME = 'Administrador del El Lote';
 
 // Estado de la app
 const state = {
@@ -89,35 +92,69 @@ const UI = {
     }
 };
 
-// Login local simulado (para la demo o puedes conectarlo a Auth de Supabase)
-document.getElementById('login-form').addEventListener('submit', (e) => {
+// Login real con backend
+document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const user = document.getElementById('login-user').value.trim();
     const pass = document.getElementById('login-pass').value;
     
-    // Validacion dummy
-    if (!user || pass.length < 4) {
-        UI.toast('Credenciales inválidas (mín. 4 caracteres)', 'error');
+    if (!pass) {
+        UI.toast('La contraseña es requerida', 'error');
         return;
     }
     
     UI.toggleSpinner('btn-login', 'login-spinner', true);
     
-    setTimeout(() => {
-        state.cajero = user;
-        document.getElementById('display-user').textContent = user;
+    try {
+        const response = await fetch(EDGE_LOGIN_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ password: pass })
+        });
+
+        if (!response.ok) {
+            let errBody = {};
+            try { errBody = await response.json(); } catch(e){}
+            throw new Error(errBody.error || `Error HTTP: ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
+        state.cajero = ADMIN_NAME;
+        document.getElementById('display-user').textContent = ADMIN_NAME;
         UI.showScreen('screen-main');
         UI.showSection('section-scan');
         initScanner();
+        UI.toast('¡Sesión iniciada!', 'success');
+        document.getElementById('login-form').reset();
+    } catch (error) {
+        console.error('Error de login:', error);
+        UI.toast(error.message || 'No se pudo iniciar sesión', 'error');
+    } finally {
         UI.toggleSpinner('btn-login', 'login-spinner', false);
-    }, 800);
+    }
 });
 
-// Logout
-document.getElementById('btn-logout').addEventListener('click', () => {
+// Logout real en backend
+document.getElementById('btn-logout').addEventListener('click', async () => {
     if(state.html5QrCode && state.html5QrCode.isScanning) {
         state.html5QrCode.stop().catch(console.error);
     }
+
+    try {
+        await fetch(EDGE_LOGOUT_URL, {
+            method: 'POST',
+            credentials: 'include'
+        });
+    } catch (error) {
+        console.warn('No se pudo cerrar sesión en servidor:', error);
+    }
+
     state.cajero = null;
     state.historial = [];
     UI.updateHistory();
@@ -198,7 +235,9 @@ async function procesarCliente(telefono) {
     UI.showSection('section-action');
 
     try {
-        const response = await fetch(`${EDGE_CLIENTE_URL}?telefono=${encodeURIComponent(telSanitizado)}`);
+        const response = await fetch(`${EDGE_CLIENTE_URL}?telefono=${encodeURIComponent(telSanitizado)}`, {
+            credentials: 'include'
+        });
         if (!response.ok) {
             let errBody = {};
             try { errBody = await response.json(); } catch(e){}
@@ -264,8 +303,7 @@ document.getElementById('puntos-form').addEventListener('submit', async (e) => {
 
     const payload = {
         telefono: state.clienteActivo.telefono,
-        monto: monto,
-        cajero: state.cajero
+        monto: monto
     };
 
     try {
@@ -274,6 +312,7 @@ document.getElementById('puntos-form').addEventListener('submit', async (e) => {
             headers: {
                 'Content-Type': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify(payload)
         });
 
