@@ -17,3 +17,9 @@ method = "POST"
 function = "cliente"
 path = "/api/cliente"
 method = "GET"
+
+[[headers]]
+  for = "/.well-known/assetlinks.json"
+  [headers.values]
+    Content-Type = "application/json"
+    Access-Control-Allow-Origin = "*"
