@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "artifactType": {
+    "type": "COMPATIBLE_SCREEN_MANIFEST",
+    "kind": "Directory"
+  },
+  "applicationId": "app.netlify.rfwdsfgdnfdfgegdbf0pbodgt0odnbot348n.twa",
+  "variantName": "release",
+  "elements": []
+}
