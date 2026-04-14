@@ -1,4 +1,4 @@
-#Mon Apr 13 21:19:49 ART 2026
+#Tue Apr 14 10:38:15 ART 2026
 base.0=C\:\\Users\\juanp\\OneDrive\\Documentos\\GitHub\\Asignar_puntos\\app\\build\\intermediates\\dex\\release\\minifyReleaseWithR8\\classes.dex
 renamed.0=classes.dex
 path.0=classes.dex

@@ -19,8 +19,8 @@
     "path": "C:\\Users\\juanp\\OneDrive\\Documentos\\GitHub\\Asignar_puntos\\android.keystore",
     "alias": "android"
   },
-  "appVersionName": "1",
-  "appVersionCode": 1,
+  "appVersionName": "3",
+  "appVersionCode": 3,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://rfwdsfgdnfdfgegdbf0pbodgt0odnbot348n.netlify.app/manifest.json",
@@ -42,5 +42,5 @@
   "fileHandlers": [],
   "launchHandlerClientMode": "",
   "displayOverride": [],
-  "appVersion": "1"
+  "appVersion": "3"
 }
